@@ -1,0 +1,100 @@
+Sesión 1: Monitorización y Profiling
+
+-Clase más teorica (Todo es siguiendo el guion)
+
+Tenemos que saber interpretar las cosas de la pantalla. En esto se basa la monitorización.
+Tenemos que saber que archivos nos proporciona la información
+Tener conocimientos de automatización y orquestación
+Saber utilizar y configurar un monitor del sistema
+
+No damos monitorización hardware porque utilizamos la virtualización. M sensore- monitorización hardware.
+
+
+Podemos monitorizar los mensajes del kernel con el comando dmesg. Sirve para los pendrives que no se reconocen.
+
+logrotate es un demonio que se ejecuta en segundo plano que sirve para que no se llene el archivo de los logins
+El archivo de los logs pasa a ser log1.gz y el que era log1 pasa a ser log2. Por lo tanto se reescriben los archivos
+Se puede configurar el numero de logs como maximo
+
+
+Mdstat. Esta relacionado con los dispositivos y discos
+Podemos hacer mdstat . cat /proc/mdstat
+Personalities nos dice los RAIDS que tiene configurado el CMD
+HAY QUE LEERSE EL MANUAL.
+
+Detecting,queueing, testing
+Podemos monitorizar el estado del RAID 1 con
+mdadm --monitor --daemonise --mail=...
+
+strace. Sirve para monitorizar un servicio o ejecucion de un programa. En el guion hay ejemplos
+
+DEMO :
+
+Cojemos ubuntu server:
+sudo grub-install /dev/sdb
+
+Apagamos la maquina y quitamos un disco
+
+Se supone que nos tiene que salir el initramfs
+Tabulamos 2 veces y nos aparece muchos servicios.
+
+mdadm es el que nos funciona.
+dmesg // Nos muestra todos los errores que nos salen
+El error a la hora de arrancar eran los metadatos del lvm
+lvm // Nos mete en un prompt donde tabulamos 2 veces y nos aparece muchos archivos raros
+
+lvmdiskscan // Esta orden nos permite escanear los discos dentro del prompt
+
+cat /proc/mdstat
+
+Vemos que el sda está inactivo y no aparece el sdb. Por lo que vamos a usar mdadm para activar el sda
+
+mdadm -R  /dev/md0
+
+cat /proc/mdstat
+
+Ahora está activo el sda que está up y sdb esta down.
+
+Salimos del intitramfs con Contr D.
+
+Ahora empieza el arranque normal
+
+TODO ESTO NO HABRIA PASADO CON UN RAID HARDWARE
+
+Al volver añadir el disco duro nos da error en el GRUB pq el nuevo disco no conoce el grub,
+Tenemos que indicar que arranque con el sda que es el que tiene el grub, con la configuracion del virtual box
+cambiamos a que el sda sea el puerto sata 1 .
+Para añadir el disco al RAID ejecutamos el siguiente comando
+
+mdadm --add /dev/md0 /dev/sdb
+
+Monitorizamos el proceso de recuperación del RAID
+
+watch -n 2 cat /proc/mdstat
+
+
+LEERSE TODAS LAS PRACTICAS
+
+Ubuntu server tiene que ser capaz de monitorizarse a si mismo y a CentOS con ZABBIX 3.4
+Que pueda monitorizar HTTP y SSH. Zabbix_server capaz de hacer muchas cosas.
+
+Tendremos que instalar en agent.
+
+Añadimos proxys como procesos para eliminar el problema de la congestion, entre la comunicacion de Zabbix y el agent
+Lectura obligatoria del manual
+
+NO INSTALAMOS EL PROXY, solo el zabbix_server y el agent.
+
+sudo apt install zabbix-get
+
+zabbix-get -s 192.168.105 -k .... // Para poder verlo desde la terminal
+-------------------------------------------------Sesion 3--------------------------------------------------------
+Ansible es una herramienta muy util para programar scripts y visualizar su ejecucion de manera comoda
+Ansible es capaz de conectarse a todos los hosts y ejecutar una serie de scripts
+La gran utilidad de ansible son los playbooks, que son la especie de scripts que ejecuta.
+YAML : yet another marck up language
+
+Tenemos que ser capaces de instalar ansible y hacerle un ping a los hosts que se encuentran en /etc/ansible/hosts
+Lo suyo seria definir un conjunto de servidores y que ansible lo hiciera directamente
+
+ansible -m ping

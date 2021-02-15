@@ -1,0 +1,366 @@
+Vamos a ver ssh : es para conectarte desde una ordenador a otro (abrir una sesion desde una ventana remota en otro sistema)
+ssh = secure shell
+Sirve para acceder al servidor desde una terminal. Pq el servidor esta en el quinto coño con otras maquinas, con buena conexion.
+Nos conectamos al servidor desde nuestro pc desde una ventana ssh.
+Usamos apt para instalar mierdas
+
+En Ubuntu server hacemos:
+sudo tasksel  (nos lo levanta)
+seleccionamos Openssh server
+
+
+Comprobamos con ps -Af | grep ssh si sirve ssh
+
+ssh es un demonio (Demon) por eso muestra sshd y ssh . Por que hay muchos procesos ssh
+
+Si es sshd esta en background escuchando y es un servicio
+Si es sshx es un cliente, no es lo mismo
+
+Usamos
+systemctl status <nombre_del_servicio>.service  // Tambien toma como correcto sshd
+
+Escucha en el puerto 22 ---- pone port 22
+
+Desde nuestro ordenador normal o CentOS buscamos en el man de ssh
+
+Para el nombre de usuario
+ssh 192.168.56.105 -l nombre_de_usuario   // -d tambien funciona . Podemos poner -v al final para que te explique todo el proceso
+ssh 192.168.56.105 @nombre_de_usuario
+
+*1_Captura de pantalla*
+
+Archivos de configuracion
+
+/etc/ssh/sshd_config // Para el servicio
+/etc/ssh/ssh_config // Para el cliente
+
+Entrando en /etc/ssh/sshd_config con vi vemos la 2 captura de pantalla. Vemos que puede entrar en root con la contraseña desde ssh
+Se ve en el prohibit-password . Lo ponemos a NO y cambiamos el puerto a 22022 para que sea mas dificil de conectar
+
+Una vez modificado tenemos que reiniciar el servicio ( Como en FR )
+systemctl restart sshd
+
+Podemos comprobar que ahora se escucha en el puerto 22022 haciendo el
+systemctl status ssh.service
+
+Comprobamos ahora desde nuestro cliente a conectarnos con
+ssh 192.168.56.105 -l rubendelgado -p 22022 (-p es para el puerto)
+
+HAY QUE COMPROBAR TODO
+
+---------------------------LO HACEMOS AHORA CON CENTOS::::::::::::::::::::::::::::::::::::
+En centOS ya está instalado el ssh
+systemctl status sshd // HAY QUE PONER LA D AL FINAL pq sino no lo reconoce
+
+Ahora usamos sed // Que quiere agua??
+sed  // Sirve para modificar algunos archivos , como vi/vim
+(sed 's/Port 22/Port 22022' -i /etc/ssh/sshd_config) Esto lo que hace es sustituir las cadenas de caracteres
+
+Nos intentamos conectar desde el puerto 22022 pero no funciona pq tenemos que reiniciar el servicio
+systemctl restart sshd
+
+Aunque haciendo el
+systemctl status sshd
+vemos que sigue en el puerto 22 pq se ha comentado
+
+Tendriamos que haberle hecho este comando sed 's/#Port 22/Port 22022' -i /etc/ssh/sshd_config
+
+Ahora lo volvemos a reiniciar
+journalctl -xe // Tambien funciona para monitorizar
+
+Pues no funciona pq CentOs tiene SELinux , volvemos al archivo de configuracion /etc/ssh/sshd_config
+
+y leyendo el archivo nos indica un comando para añadir un puerto
+semanage port -a -t ssh_port_t -p tcp <Numero del puerto>
+
+Pero tenemos que descargarnos e instalar semanage
+yum provides semanage
+
+yum install policycoreutils-python
+
+Lo instalamos y
+
+semanage port -a -t ssh_port_t -p tcp 22022 // Tarda un poco
+
+Reiniciamos el servicio y comprobamos el estado
+systemctl restart ssh
+systemctl status ssh
+
+ssh localhost -p 22022 // Deberia de funcionar con el localhost, pero con otra terminal no funciona
+
+Sin embargo el puerto es inaccesible desde fuera. Porque centOS tiene un firewall activado.
+
+iptables // para configurar conexiones
+
+pero nostros vamos a utilizar firewall-cmd para CentOS
+Para ubuntu que tambien tiene firewall pero desactivado por defecto ufw
+
+Vamos a aprender a abrir un firewall con:
+man firewall-cmd
+firewall-cmd --state // para ver el estado del firewall
+
+Dentro del man, usamos el ejempl2:
+firewall-cmd --add-port=22022/tcp  //Funciona hasta que se reinice la maquina o el cortafuegos, no se debe de usar
+firewall-cmd --permanent --add-port=22022/tcp  //Este abre el puerto en la configuracion, pero no lo aplica, entonce sigue cerrado
+
+Hay que hacer un reload del firewall para que se pueda abrir de manera permanente
+
+firewall-cmd --reload
+
+Ahora toca hacerlo en Ubuntu:
+man ufw
+
+ufw status //Mira el estado del firewall
+
+ufw enable //Activa el firewall
+
+ufw allow 22022  //Permite al nuevo puerto 22022
+
+ufw status  // Miramos los estados
+
+id_rsa
+id_rsa.pub
+
+Vamos a hacer una cosa para no tener que poner contraseña siempre
+Generando id_rsa y id_rsa.pub
+
+man ssh-keygen
+ssh-keygen
+
+ahora con un script:
+man ssh-copy-id // Hacemos que se copie la llave publica a el servidor, pero hay que autentificarse en el servidor
+
+ssh-copy-id 192.168.56.110
+
+aunque sigue sin dejarte pq no te has autentificado. Por lo tanto en /etc/sshd_config vemos que el autentificatione este en YES
+
+vi /etc/ssh/sshd_config pq es en el servidor
+
+hacemos un reload de ssh  con el systemctl y podemos entrar
+
+systemctl restart sshd
+
+ssh 192.168.56.110
+
+Tenemos que hacer un script de comandos para copiar los id_rsa.pub , abrir el autentification y cerrarlo.
+
+-------------------------------------------------------Sesion 2------------------------------------------------
+Sesion de GIT:
+
+El material esta subido a swad
+
+ESTUDIAR TODO EL MATERIAL DE LAS DIAPO
+
+-------------------------------------------------------Sesion 3------------------------------------------------------
+
+INSTALACION DE UN SERVIDOR WEB:
+
+Internet: Basicamente es una red de redes creada como proyecto militar
+IP : Internet protocol , TCP y UDP
+HTTP : Hypertext Transfer Protocol
+HTML : Hypertext Mark-up Language
+
+Vamos a Implementar la pila LAMP en nuestro servidor
+
+UBUNTU :
+
+ sudo tasksel // buscamos LAMP server y le damos al espacio y aceptamos
+
+Lo comprobamos probando el comando instalando
+
+curl localhost // tenemos que ver URL
+
+ps -Af | grep apache
+
+sudo ufw allow 80 // Permite conectarte al puerto 80 y poder meterte en ese puerto
+
+mysql -u root -p   // Tiene que saltar prompt para ver que estamos conectados
+
+php -a  // Para comprobar php
+
+CENTOS:
+
+yum search apache
+
+yum install httpd -y // Instalamos apache
+
+systemctl status httpd // Comprobamos que esta apache, y esta inactivo y deshabilitado .
+
+Tendremos que activarlo y habilitarlo
+
+systemctl enable httpd  // habilitamos apache
+
+systemctl status httpd  // Comprobamos
+
+systemctl start httpd // Activamos el apache
+
+curl localhost // Comprobamos que apache se puede conectarte
+
+Como estamos en centOS tenemos que ejecutar el firewall
+
+firewall-cmd --add-port=80/tcp
+firewall-cmd --permanent --add-port=80/tcp
+Otra forma
+firewall-cmd --reload
+
+Ahora instalamos MariaDB
+
+yum install mariadb
+
+systemctl status mariadb // No encuentra el servicio
+
+ps -Af | grep mariadb // Tampoco sale
+
+PUES NO APARECE PQ HEMOS DESCARGADO EL CLIENTE NO EL SERVIDOR ...............
+
+yum install mariadb-server // Ahora instalamos el servidor
+
+systemctl status mariadb //Comprobamos el estado del servicio
+
+systemctl enable mariadb // Habilitamos el servicio
+
+systemctl status mariadb // Comprobamos
+
+systemctl start mariadb // Activamos mariadb
+
+mysql -u root -p // Nos conectamos sin contraseña
+
+Nos intentamos conectar pero se conecta automaticamente pq no tiene contraseña .
+En el manual especifica que tenemos que ejecutar un script
+FORMA CORRECTA
+yum install mariadb-server
+mysql_secure_installation  // No pide contraseñas que sera practicas,ISE  y si borramos los usuarios y damos que si
+
+systemctl status mariadb
+
+mysql -u root -p // Ahora si pide la contraseña
+
+yum install php // Instalamos ahora php
+
+php -a // Comprobamos la instalacion
+
+PROBAMOS QUE FUNCIONE TODO JUNTO
+
+Necesitamos que php ejecute un script y se conecte a la base de datos y devuelva algo
+
+mysql_conect // Busqueda en google
+
+https://www.php.net/manual/es/function.mysql-connect.php
+
+Ejemplo 1 y ejecutarlo
+<?php
+$enlace =  mysql_connect('localhost', 'usuario_mysql', 'contraseña_mysql');
+if (!$enlace) {
+    die('No pudo conectarse: ' . mysql_error());
+}
+echo 'Conectado satisfactoriamente';
+mysql_close($enlace);
+?>
+
+Nos conectamos desde ssh para crear el script y copiarlo
+ssh <puerto-IP> -p 22022
+sudo su // Pq no tenemos permisos
+cd /var/www/html   // ????????????????
+cat Ejemplo1 > miscript.php
+vi miscript.php // Copiamos y pegamos no se como
+Dentro de vi tenemos que modificar  $enlace =  mysql_connect('localhost', 'root', 'practicas,ISE'); // No es recomendable poner la contraseña en este script
+
+cd /etc/httpd/conf
+vi httpd.conf
+Editamos el archivo y nos leemos el manual .
+Aqui nos explica el documentroot que esta en /var/www/html
+
+Buscamos DisrectoryIndex:
+Añadimos en la linea de abajo : index.html *.php
+
+Reiniciamos los servicio pq hemos modificado los archivos de configuracion
+systemctl restart httpd
+
+Sigue sin funcionar, es un error de php y no se muestra en pantalla. Tenemos que monitorizar el login a apache
+
+less /var/log/httpd/error_log // MAYUS G nos lleva al final
+
+cd /var/www/html
+php miscript.php // Intentamos ejecutarlo y sale el error
+
+Basicamente se debe a que php no muestra los errores por defecto en pantalla
+
+yum search mysql | grep php // Para ver que necesitamos instalar para que se pueda conectar
+
+yum install php-mysql // lo instalamos
+
+Reiniciamos el servicio
+
+systemctl restart httpd
+
+Deberia de salirnos conectado satisfactoriamente.
+
+AHORA MISMO SI TENEMOS 2 SERVIDORES , UNO PARA APACHE Y OTRO PARA MYSQL NO SE PODRIAN CONECTAR
+DEBIDO A QUE HAY UN BOOL httpd_can_network_connect_db = off QUE ESTA EN OFF
+
+Vemos este booleano con getsebool -a Vemos todos los booleanos
+
+setsebool -p // Para cambiar un booleano
+
+Finalmente le damos una vuelta a la seguridad con la herramienta FAIL2BAN
+
+Lo que hace es mirar el auth.log y cuando lleve un numero predeterminado de errores archivo de conf pues actualiza la IP tables y banea esa IP
+
+Tenemos que añadir un repositorio EPEL para poder usar el FAIL2BAN
+
+yum search epel
+
+yum install epel-release
+
+yum search fail2ban
+
+yum install fail2ban
+
+systemctl status fail2ban
+
+systemctl enable fail2ban
+
+systemctl start fail2ban
+
+Configuramos fail2ban
+
+cd /etc/fail2ban
+
+less jail.conf
+
+Dice que no toquemos el jail.conf
+
+cp -a jail.conf jail.local
+
+vi jail.local
+
+Editamos el local y buscamos en sshd y ponemos
+enabled = YES
+
+reiniciamos el servicio
+
+systemctl restart fail2ban
+
+fail2ban-client status ssh
+
+Sin embargo no te banea bien pq hemos entrado con el puerto 22022 y en el jail.local tenemos el puerto 22
+
+Por lo tanto tenemos que ir a jail.local y cambiar el puerto de ssh de 22 a 22022
+
+Reiniciamos el servicio
+
+systemctl restart fail2ban
+
+fail2ban-client status ssh
+
+Como nos desbaneamos ??
+
+fail2ban-client set sshd unbanip 192.168.56.1
+
+fail2ban-client status ssh
+
+Reiniciamos el reinicio
+
+systemctl restart fail2ban
+
+screen y tmux 

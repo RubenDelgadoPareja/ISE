@@ -1,0 +1,214 @@
+lsnAlberto Guillén
+##Seminario 1
+
+CPD : Centro de Procesamiento de Datos
+
+Alternativas para un servidor propio con maquinas virtual:
+-Contratar un servidor (contenido dedicado)
+-VPS con un software de virtualizacion
+
+CentOS <- Red Hat Enterprise Linux -> Fedora
+to Guillén
+##Seminario 1
+
+No usamos Windows Server pq despues de 2016 no es viable virtualizar con Windows Server
+
+Una maquina virtual es un archivo pero el software de virtualizacion permite crear el SO a partir de ese archivo (VMWare, VirtualBox)
+
+
+RAID1 (mirror) : Redundant Array of Independent Disk. Paterson 86. Implica seguridad en el acceso a los datos ya que es redundante. Este tipo de RAID1 es una copia de los discos como un espejo
+
+Servidor: Sirve un contenido que almacena en algun disco
+
+FDE : a Full Disk Encryption (LOPD)
+
+Ventaja e Inconvenientes del RAID Hw y Sw:
+-Fallo fisico en el Hw (Inconvenientes para el Hw)
+-Fallo fisico poco probable con respecto al fallo logico (Inconvenientes para el Sw)
+-El SO se tiene que encargar en el Hw, por lo que tiene más carga (Inconvenientes para el Sw)
+-El RAID Hw es más caro (Inconvenientes para el Hw)
+-El RAID Sw necesita un mantenimiento de un humanware (Inconveniente del Sw)
+
+MD (multidevice)
+
+LVM = Abstraccion para gestionar los volumenes logicos. Muy util ya que da gran flexibilidad, ya que si un cliente se queda sin espacio logico, puedes añadir espacio fisico inmediatamente
+para tener el espacio en el mismo dia.
+
+boot<swap<home<root
+arranque -> 240MG
+home -> 400MG
+swap -> 900MG
+raiz -> 8GB
+
+NO SE CIFRA BOOT O ARRANQUE PQ SINO NO ARRANCA LA MAQUINA VIRTUAL
+si cifras swap se pierde eficiencia, pero se debe de cifrar swap para que en caso de que alguien accediera a swap proteja los datos y el disco.
+
+El proxy lo dejamos en blanco ya que estamos en el portatil, si fuera en el pc de la ETSIIT pues tendriamos que poner
+lo que nos dice en la practica
+
+Cuando terminamos, las actualizaciones pueden ser automáticas o no automáticas. Tiene pros y contras
+Aunque es mejor las actualizaciones no automáticas.
+
+
+El GRUB debemos instalarlo en el registro principal?? Si, hay alternativas como un USB
+Tenemos que elegir en que disco duro hay que meter el GRUB, pero da lo mismo pq hay un RAID1 software.
+Pero solo se va a instalar el MBR en el que elijamos. Como solucion podemos ejecutar: sudo grub-install /dev/sdb
+De esta forma si falla sda puede arrancar con sdb
+El RAID1 software contempla el MBR???   No
+
+
+Para comprobar que esta todo bien ejecutar lsblk
+
+Hacemos una instantanea para que se guarde toda la informacion
+
+ext4 es usado para archivos grandes. Los extends tiene sentido
+Tamaño de bloque estandar (4kB)
+
+
+-------------------------------------------------------------------------------------------------------------------
+##Seminario 2
+
+centOS. Descargamos la imagen ISO y instalamos todo por defecto
+
+Comandos que nos dan informacion: lsblk , lvm (si tabulamos nos dice los comandos de lvm)
+
+
+
+LVM : Nos permite obtener informacion fisica con el comando pvs(physical volume short) , pvdisplay (para mas informacion)
+Otros comandos  vgdisplay(grupo de volumenes) y lvdisplay(volumenes logicos). Todo se ejecuta con sudo. Entramos en root haciendo "su"
+
+TODO CON ROOT
+Leccion 2: Tenemos que aumentar el espacio de /var. Tenemos que montar /var en un nuevo volumen logico.
+Creamos otro disco duro desde la configuracion del virtual box y reiniciamos. Lo comprobamos con lsblk
+Necesitamos crear un physical volumen. pvcreate /dev/sdb. Para crear una particion usamos fdisk (SO).
+Una vez creado el p physical volumen /dev/sdb hay que extender al volume group (grupo de volumenes) ya existente.
+vgextend cl /dev/sdb
+Creamos un nuevo volumen logico. lvcreate -L 5G -n newvar cl  (el -L es la capacidad, -n el nombre y cl es el volume group donde se va a ubicar ) .
+
+¿Creamos un volumen logico para /var para que aumente la capacidad? Usando lvm como nos aseguramos de que este
+volumen logico este ligado al nuevo volumen fisico comprado. Creando un volume group especifico para /var
+
+
+1Tenemos que hacer accesible al logical volume, pero antes hay que añadirle un file system. mkfs -t ext4 (tipo de file system)
+Como pasamos el tamaño del bloque de 4KB a 16 KB. En el momento de crear el file system. mkfs -t ext4 -b (block size)
+
+2Para hacer el transvase de informacion podemos usa cp o mv. Usamos mejor cp (usamos un unico usuario = systemctl isolate runlevel1.target)
+Para comprobar que eres el unico usuario systemctl status - Tiene que salir mantenimiento
+cp  (origen) /var (destino)
+Saber diferenciar entre /var  /var/*  /var/.  /var/
+cp se salta los enlaces directos y eso es un problema. podemos ver con ls -la /var/ todos los enlaces
+cp tambien se salta el contexto, como SELinux que nos da la seguridad.
+cp -d preserva lo links, cp -a preserva TODO y es iterativo
+mkdir /mnt/newvar  //Creamos el path donde se va encontrar el nuevo logical volume
+mount /dev/cl/newvar /mnt/newvar/   //Montamos el nuevo logical volume en dicha direccion
+mount para comprobar
+
+cp -a /var/. /mnt/newvar
+
+lo vemos con ls si se ha realizado
+
+
+
+3Indicar al SO donde montar /var (un unico usuario = systemctl isolate runlevel1.target)
+
+
+Usamos vi para modificar el /etc para cambiar el filesystem table e indicar donde tiene que estar montado /var
+En vi (SO) tenemos modo comando(Esc) modo insertar texto (i). Para salir q!.
+vi /etc/fstab
+*no se que hay que añadir*
+Hay una captura de pantalla
+
+
+mount -a // Para que se monte
+mount //Para comprobar que este montado
+
+Ya estaria hecho el traspase de informacion
+
+umount /mnt/newvar
+
+
+4Liberar el espacio
+
+mover /var a otro sitio accesible
+mov /var /var.old
+volvemos a montar /var
+mount -a  //Esto da un error pq no exite
+mkdir /var
+restorecon /var
+mount -a
+Eliminamos todo de /var
+rm /var
+
+
+Todo esto merece la pena pq tendriamos un backup
+
+--------------------------------------------------------------------------------------------------------------------
+##Seminario 3
+Tenemos que hacer algo parecido al seminario anterior mezclado con el primer (Ya que hay que hacer un RAID1 con cifrado)
+Comenzamos desde CentOS recien instalado, tendriamos que tener una instantanea.
+
+Por lo tanto necesitamos como minimo 2. Por lo tanto tendremos 3 discos (2 para el RAID y el otro el normal)
+
+Tenemos que crear principalmente una tabla de particiones para el RAID1 (no es necesario, pero recomendable)
+
+mdadm --create md0 --level=1 --raid-devices=2 /dev/sdb /dev/sdc  //Asi creamos el RAID1
+
+Tenemos que crear ahora nuestro physical volume
+pvcreate /dev/md0 //Yo le puse md127
+
+pvs o pvdisplay// para ver los volumenes fisicos
+
+Creamos ahora un grupo de volumenes:
+vgcreate pmraid1 /dev/md0
+
+vgs o vgdisplay //Para comprobar
+
+Creamos el volumen logicos
+lvcreate -L 3G -n newvar pmraid1
+
+lvs o lvdisplay // Para ver los volumenes logicos
+
+
+(Ubuntu: LUKS(linux Unified Key setup) on LVM, los ultimos ubuntus serán al contrario )
+
+Ciframos ahora el RAID1:
+yum install cryptsetup
+
+man cryptsetup
+
+Para ello tenemos que formatear nuestro volumen logico.
+cryptsetup luksFormat /dev/mapper/pmraid1-newvar
+
+man shred //sobreescribir un archivo para ocultar la informacion, no lo usamos pq escribiriamos sobre todo el disco, cosa que no deseamos. Nos cargamos el estado inicial
+
+//Para comprobar si está cifrado
+cryptsetup luksOpen /dev/mapper/pmraid1-newvar pmraid1-newvar_crypt
+
+ls /dev/mapper //Para ver si esta el archivo pmraid1-newvar_crypt
+
+Tenemos que crear el sistema de archivos (se le habia olvidado al profe xd)
+mkfs -t ext4 /dev/mapper/pmraid1-newvar_crypt (xfs para centOS aunque usamos el que queramos)
+
+Montamos el sistema de archivos en newvar
+mount /dev/mapper/pmraid1-newvar_crypt /mnt/newvar
+
+//Para que no acceda ningun usuario - es decir, monousuario.
+isolate runlevel1.target
+
+//Ahora tenemos que hacer el trasvase de informacion con el cp  -- De forma re
+cp -a /var/. /mnt/newvar/
+mv /var /var_old
+mkdir var
+restorecon /var
+vi /etc/fstab  //Modificamos para indicar donde esta montado y el sistema de archivos
+
+UUID (Universal UID) Para conseguirlo de los blocks devices es con blkid (de block ID)
+blkid
+
+blkid | grep crypto >> /etc/crypttab
+
+vi /etc/crypttab  //Tenemos que modificar para que tengan el mismo nombre y UUID en /etc/fstab y /etc/crypttab
+
+reboot //reiniciamos
+
+Me ha faltado montarlo ???
